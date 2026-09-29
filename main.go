@@ -561,7 +561,6 @@ func buildIPStats() []*IPStats {
 		fail map[string]int
 		n    int
 		smpl []string
-		note string
 	}
 	groups := map[string]*bucket{}
 	noteOf := map[string]string{}
@@ -1123,7 +1122,7 @@ func testOneHTTP(provider *DNSServer, domain string) *HTTPResult {
 		}
 		return hr
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	n, _ := io.CopyN(io.Discard, resp.Body, 64<<10) // baca maks 64 KB sbg proksi load
 	total := time.Since(totalStart)
 
@@ -1331,7 +1330,10 @@ func exportFiles(doc *ExportDoc, ipStats []*IPStats, opt *BenchOptions) {
 			})
 		}
 		w.Flush()
-		f.Close()
+		if err := f.Close(); err != nil {
+			fmt.Printf("%s[FAIL] Tulis CSV: %v%s\n", ColorRed, err, ColorReset)
+			return
+		}
 		fmt.Printf("%s[OK] Ringkasan per IP (CSV): %s%s\n", ColorGreen, opt.CSVPath, ColorReset)
 	}
 }
