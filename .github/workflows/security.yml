@@ -1,0 +1,54 @@
+name: Security
+
+# Pindai kerentanan dependensi + lisensi dengan Trivy.
+# Hasil SARIF masuk ke tab GitHub "Security > Code scanning".
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Setiap Senin 06:00 UTC — menangkap CVE baru pada dependensi yang ada.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  trivy:
+    name: Trivy vuln & license scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Run Trivy (vuln + license, SARIF)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,license
+          format: sarif
+          output: trivy-results.sarif
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
+
+      - name: Run Trivy (human-readable table)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,license
+          format: table
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: '0'

@@ -9,6 +9,9 @@ jobs:
   build:
     name: Build ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      actions: write
     strategy:
       matrix:
         include:
@@ -39,12 +42,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v7
         with:
-          go-version: '1.25'
+          go-version: '1.26'
 
       - name: Build binary
         run: |
@@ -54,7 +57,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dnsbench-${{ matrix.os }}-${{ matrix.arch }}
           path: dnsbench-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.extension }}
@@ -65,20 +68,33 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # git-cliff butuh riwayat + tags penuh
+
+      - name: Generate release notes
+        id: git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          GITHUB_REPO: ${{ github.repository }}
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: artifacts/**/*
+          body: ${{ steps.git-cliff.outputs.content }}
           draft: false
           prerelease: false
         env:
